@@ -120,7 +120,36 @@ Merge mutant and wildtype datasets for analysis
 mt.all <- merge(mt1, y = c(mt2, mt3), add.cell.id = c("mt1", "mt2", "mt3"), merge.data = TRUE)
 wt.all <- merge(wt1, y = c(wt2), add.cell.id = c("wt1", "wt2"), merge.data = TRUE)
 
+mt.all <- FindVariableFeatures(mt.all, selection.method = 'vst', nfeatures = 2000)
 
+all.genes <- rownames(mt.all)
+mt.all <- ScaleData(mt.all, features = all.genes)
+mt.all <- RunPCA(mt.all, features = VariableFeatures(object = mt.all))
+ElbowPlot(mt.all)
+
+mt.all <- FindNeighbors(mt.all, dims = 1:5) # Edit dims based on ElbowPlot
+mt.all <- FindClusters(mt.all, resolution = 0.4) 
+mt.all <- RunUMAP(mt.all, dims = 1:5)
+
+# Plot by sample to see if properly merged 
+DimPlot(mt.all, reduction = 'umap', label = FALSE, label.box = TRUE, split.by = "orig.ident")
+
+
+
+
+wt.all <- FindVariableFeatures(wt.all, selection.method = 'vst', nfeatures = 2000)
+
+all.genes <- rownames(wt.all)
+wt.all <- ScaleData(wt.all, features = all.genes)
+wt.all <- RunPCA(wt.all, features = VariableFeatures(object = wt.all))
+ElbowPlot(wt.all)
+
+wt.all <- FindNeighbors(wt.all, dims = 1:5) # Edit dims based on ElbowPlot
+wt.all <- FindClusters(wt.all, resolution = 0.4) 
+wt.all <- RunUMAP(wt.all, dims = 1:5)
+
+# Plot by sample to see if properly merged 
+DimPlot(wt.all, reduction = 'umap', label = FALSE, label.box = TRUE, split.by = "orig.ident")
 ```
 
 
