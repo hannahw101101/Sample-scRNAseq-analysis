@@ -12,8 +12,8 @@ library(patchwork)
 
 Merged together the wildtype and mutant datasets for future analysis 
 ```{r}
-mt1 <- Read10X("/Users/hannahwilcox/Documents/sample_scRNA_sequencing_data/mt1")
-mt1 <- CreateSeuratObject(counts = mt1, project = "mt1", min.cells = 3, min.features = 200)
+mt1.data <- Read10X("/Users/hannahwilcox/Documents/sample_scRNA_sequencing_data/mt1")
+mt1 <- CreateSeuratObject(counts = mt1.data, project = "mt1", min.cells = 3, min.features = 200)
 
 mt2 <- Read10X("/Users/hannahwilcox/Documents/sample_scRNA_sequencing_data/mt2")
 mt2 <- CreateSeuratObject(counts = mt2, project = "mt2", min.cells = 3, min.features = 200)
@@ -28,6 +28,7 @@ wt2 <- Read10X("/Users/hannahwilcox/Documents/sample_scRNA_sequencing_data/wt2")
 wt2 <- CreateSeuratObject(counts = wt2, project = "wt2", min.cells = 3, min.features = 200)
 
 ```
+
 
 Doing QC
 ```{r}
@@ -151,6 +152,74 @@ wt.all <- RunUMAP(wt.all, dims = 1:5)
 # Plot by sample to see if properly merged 
 DimPlot(wt.all, reduction = 'umap', label = FALSE, label.box = TRUE, split.by = "orig.ident")
 ```
+
+Samples are properly merged with all samples having cells in each cluster, so no need to integrate. Can now run DEA 
+
+```{r}
+# Cell Type Analysis on Mutant cells 
+
+# Neurons
+VlnPlot(mt.all, features = c("RBFOX3", "SLC17A7", "TBR1", "GAD1", "GAD2"))
+
+# Microglia and Astrocytes
+VlnPlot(mt.all, features = c("CSF1R", "CX3CR1", "AQP4", "FGFR3"))
+
+# Oligodendrocytes and OPCs 
+VlnPlot(mt.all, features = c("SOX10", "MOG", "MOBP", "PDGFRA", "SMOC1"))
+
+# Endothelial Cells
+VlnPlot(mt.all, features = c("NOSTRIN", "CLDN5", "FLT1"))
+
+# Pericytes and Monocytes
+VlnPlot(mt.all, features = c("RGS5", "HIGD1B", "PDGFRB", "CX3CR1"))
+
+# Macrophages and Fibroblasts and Epithelial 
+VlnPlot(mt.all, features = c("CD74", "ALPL", "DCN", "IGFBP4", "WFDC2"))
+
+head(mt.all)
+
+```
+
+
+```{r}
+# Cell Type Analysis on Wild Type cells 
+
+# Neurons
+VlnPlot(wt.all, features = c("elav", "Fas2", "trio"))
+
+# Glia
+VlnPlot(wt.all, features = c("repo", "glial"))
+
+# Muscle
+VlnPlot(wt.all, features = c("Mhc"))
+
+# Fat body
+VlnPlot(wt.all, features = c("Lsp2"))
+
+# Ovary
+VlnPlot(wt.all, features = c("Orb", "esg"))
+
+# Blood Cells
+VlnPlot(wt.all, features = c("Hml", "P1", "P2"))
+
+
+```
+
+0:
+1:
+2:
+3:
+4:
+5:
+6:
+7:
+8:
+
+
+
+
+
+
 
 
 
