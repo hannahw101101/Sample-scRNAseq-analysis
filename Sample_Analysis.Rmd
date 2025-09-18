@@ -31,21 +31,24 @@ wt2 <- CreateSeuratObject(counts = wt2, project = "wt2", min.cells = 3, min.feat
 
 Doing QC
 ```{r}
+QC = function(sample) {
+  # Remove unwanted cells
+  sample[["percent.mt"]] <- PercentageFeatureSet(sample, pattern = "^MT-")
+  sample <- subset(sample, subset = nFeature_RNA > 200 & nFeature_RNA < 6000 & percent.mt < 10)
 
-# Remove unwanted cells
-mt1[["percent.mt"]] <- PercentageFeatureSet(mt1, pattern = "^MT-")
-mt1 <- subset(mt1, subset = nFeature_RNA > 200 & nFeature_RNA < 6000 & percent.mt < 10)
+  # Normalize the dataset using standard normalization method 
+  sample <- NormalizeData(sample, normalization.method = "LogNormalize", scale.factor = 1e4)
 
-# Normalize the dataset using standard normalization method 
-mt1 <- NormalizeData(mt1, normalization.method = "LogNormalize", scale.factor = 1e4)
+  # Limit to only most variable features to shrink dataset 
+  sample <- FindVariableFeatures(sample, selection.method = 'vst', nfeatures = 2000)
 
-# Limit to only most variable features to shrink dataset 
-mt1 <- FindVariableFeatures(mt1, selection.method = 'vst', nfeatures = 2000)
+  # Scale to mean 0 and variance 1 so highly expressed genes don't dominate 
+  all.genes <- rownames(sample)
+  sample <- ScaleData(sample, features = all.genes)
+  return(sample)
+  }
 
-# Scale to mean 0 and variance 1 so highly expressed genes don't dominate 
-all.genes <- rownames(mt1)
-mt1 <- ScaleData(mt1, features = all.genes)
-
+mt1 = QC(mt1)
 # Perform PCA 
 mt1 <- RunPCA(mt1, features = VariableFeatures(object = mt1))
 
@@ -58,8 +61,67 @@ mt1 <- FindClusters(mt1, resolution = 0.5)
 mt1 <- RunUMAP(mt1, dims = 1:5)
 DimPlot(mt1, reduction = 'umap')
 
-```
+mt2 = QC(mt2)
+# Perform PCA 
+mt2 <- RunPCA(mt2, features = VariableFeatures(object = mt2))
 
+# Assess ElbowPlot for dimensions to maintain 
+ElbowPlot(mt2)
+
+# Cluster with UMAP 
+mt2 <- FindNeighbors(mt2, dims = 1:5)
+mt2 <- FindClusters(mt2, resolution = 0.5)
+mt2 <- RunUMAP(mt2, dims = 1:5)
+DimPlot(mt2, reduction = 'umap')
+
+mt3 = QC(mt3)
+# Perform PCA 
+mt3 <- RunPCA(mt3, features = VariableFeatures(object = mt3))
+
+# Assess ElbowPlot for dimensions to maintain 
+ElbowPlot(mt3)
+
+# Cluster with UMAP 
+mt3 <- FindNeighbors(mt3, dims = 1:5)
+mt3 <- FindClusters(mt3, resolution = 0.5)
+mt3 <- RunUMAP(mt3, dims = 1:5)
+DimPlot(mt3, reduction = 'umap')
+
+wt1 = QC(wt1)
+# Perform PCA 
+wt1 <- RunPCA(wt1, features = VariableFeatures(object = wt1))
+
+# Assess ElbowPlot for dimensions to maintain 
+ElbowPlot(wt1)
+
+# Cluster with UMAP 
+wt1 <- FindNeighbors(wt1, dims = 1:5)
+wt1 <- FindClusters(wt1, resolution = 0.5)
+wt1 <- RunUMAP(wt1, dims = 1:5)
+DimPlot(wt1, reduction = 'umap')
+
+wt2 = QC(wt2)
+# Perform PCA 
+wt2 <- RunPCA(wt2, features = VariableFeatures(object = wt2))
+
+# Assess ElbowPlot for dimensions to maintain 
+ElbowPlot(wt2)
+
+# Cluster with UMAP 
+wt2 <- FindNeighbors(wt2, dims = 1:5)
+wt2 <- FindClusters(wt2, resolution = 0.5)
+wt2 <- RunUMAP(wt2, dims = 1:5)
+DimPlot(wt2, reduction = 'umap')
+
+```
+Merge mutant and wildtype datasets for analysis
+
+```{r}
+mt.all <- merge(mt1, y = c(mt2, mt3), add.cell.id = c("mt1", "mt2", "mt3"), merge.data = TRUE)
+wt.all <- merge(wt1, y = c(wt2), add.cell.id = c("wt1", "wt2"), merge.data = TRUE)
+
+
+```
 
 
 
