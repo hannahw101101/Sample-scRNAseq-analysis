@@ -157,28 +157,41 @@ Samples are properly merged with all samples having cells in each cluster, so no
 
 ```{r}
 # Cell Type Analysis on Mutant cells 
+# Common genes expressed in cell types in drosophila 
 
 # Neurons
-VlnPlot(mt.all, features = c("RBFOX3", "SLC17A7", "TBR1", "GAD1", "GAD2"))
+VlnPlot(wt.all, features = c("elav", "Fas2", "trio"))
 
-# Microglia and Astrocytes
-VlnPlot(mt.all, features = c("CSF1R", "CX3CR1", "AQP4", "FGFR3"))
+# Glia
+VlnPlot(wt.all, features = c("repo", "glial"))
 
-# Oligodendrocytes and OPCs 
-VlnPlot(mt.all, features = c("SOX10", "MOG", "MOBP", "PDGFRA", "SMOC1"))
+# Muscle
+VlnPlot(wt.all, features = c("Mhc"))
 
-# Endothelial Cells
-VlnPlot(mt.all, features = c("NOSTRIN", "CLDN5", "FLT1"))
+# Fat body
+VlnPlot(wt.all, features = c("Lsp2"))
 
-# Pericytes and Monocytes
-VlnPlot(mt.all, features = c("RGS5", "HIGD1B", "PDGFRB", "CX3CR1"))
+# Ovary
+VlnPlot(wt.all, features = c("Orb", "esg"))
 
-# Macrophages and Fibroblasts and Epithelial 
-VlnPlot(mt.all, features = c("CD74", "ALPL", "DCN", "IGFBP4", "WFDC2"))
+# Blood Cells
+VlnPlot(wt.all, features = c("Hml", "P1", "P2"))
 
-head(mt.all)
 
 ```
+0: Muscle
+1: Muscle
+2: Muscle 
+3: Neuron
+4: Neuron 
+5: Neuron 
+6: Neuron 
+7: Neuron 
+8: Neuron 
+
+
+
+
 
 
 ```{r}
@@ -205,15 +218,15 @@ VlnPlot(wt.all, features = c("Hml", "P1", "P2"))
 
 ```
 
-0:
-1:
-2:
-3:
-4:
-5:
-6:
-7:
-8:
+0: Muscle
+1: Muscle
+2: Muscle
+3: Neuron 
+4: Neuron
+5: Neuron 
+6: Neuron 
+7: Neuron 
+8: Neuron 
 
 
 
