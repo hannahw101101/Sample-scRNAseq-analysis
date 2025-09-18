@@ -5,8 +5,46 @@ date: "2025-09-18"
 ---
 
 ```{r}
-library(dplyr)
+if (!require("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+BiocManager::install(version = "3.21")
+
+# Install Bioconductor required packages
+BiocManager::install("DESeq2")
+BiocManager::install("EnhancedVolcano")
+BiocManager::install("SingleCellExperiment")
+BiocManager::install("miloR")
+BiocManager::install("clusterProfiler")
+BiocManager::install("org.Mm.eg.db")
+BiocManager::install("sccomp")
+BiocManager::install("speckle")
+
+# Install CRAN required packages
+install.packages("pheatmap")
+install.packages("ggalluvial")
+install.packages("msigdbr")
+install.packages("ggvenn")
+install.packages("tidyverse")
+
+# Load libraries
 library(Seurat)
+library(tidyverse)
+library(pheatmap)
+library(RColorBrewer)
+library(cowplot)
+library(dplyr)
+library(DESeq2)
+library(EnhancedVolcano)
+library(SingleCellExperiment)
+library(miloR)
+library(ggalluvial)
+library(clusterProfiler)
+library(org.Mm.eg.db)
+library(msigdbr)
+library(ggvenn)
+library(sccomp)
+library(speckle)
+library(ggplot2)
 library(patchwork)
 ```
 
@@ -228,6 +266,191 @@ VlnPlot(wt.all, features = c("Hml", "P1", "P2"))
 7: Neuron 
 8: Neuron 
 
+
+
+```{r}
+
+```
+
+```{r, Load object}
+# Load Seurat object containing tpos and tneg for Mayo 026
+clusters <- readRDS("/home/haw353/merged.rds")
+
+# View column names
+colnames(clusters@meta.data)
+```
+
+```{r, Data viz}
+# Number of cells per sample
+ggplot(clusters@meta.data) +
+  geom_bar(aes(x=orig.ident, fill = nCount_RNA),
+           stat = "count", color = "black") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle=45, vjust=1, hjust=1)) +
+  labs(x="Sample name", y = "Number of cells")
+
+# UMAP of sample
+DimPlot(clusters, group.by = "orig.ident")
+
+# UMAP clusters
+p <- DimPlot(clusters, group.by = "seurat_clusters") + NoLegend()
+LabelClusters(p, id = "seurat_clusters", fonface = "bold", size = 5,
+              bg.colour = "white", bg.r = .2, force = 0)
+
+```
+
+
+```{r, clusters to celltype}
+# Map clusters to celltype
+# Need to add cell type column to Seurat object 
+clusters$celltype <- NA # to create an empty column
+```
+
+# Assign cell types based on cluster IDs 
+
+# Assignment reminder
+
+
+
+```{r Add celltypes to metadata}
+
+clusters$celltype[clusters$seurat_clusters == 0] <- "Oligodendrocytes"
+clusters$celltype[clusters$seurat_clusters == 1] <- "Oligodendrocytes"
+clusters$celltype[clusters$seurat_clusters == 2] <- "Oligodendrocytes"
+clusters$celltype[clusters$seurat_clusters == 3] <- "Unknown"
+clusters$celltype[clusters$seurat_clusters == 4] <- "Excitatory"
+clusters$celltype[clusters$seurat_clusters == 5] <- "Microglia"
+clusters$celltype[clusters$seurat_clusters == 6] <- "Astrocyte"
+clusters$celltype[clusters$seurat_clusters == 7] <- "Inhibitory"
+clusters$celltype[clusters$seurat_clusters == 8] <- "Astrocyte"
+clusters$celltype[clusters$seurat_clusters == 9] <- "Astrocyte"
+clusters$celltype[clusters$seurat_clusters == 10] <- "OPC"
+clusters$celltype[clusters$seurat_clusters == 11] <- "Inhibitory"
+clusters$celltype[clusters$seurat_clusters == 12] <- "Inhibitory"
+clusters$celltype[clusters$seurat_clusters == 13] <- "Excitatory"
+clusters$celltype[clusters$seurat_clusters == 14] <- "Excitatory"
+clusters$celltype[clusters$seurat_clusters == 15] <- "Endothelial"
+clusters$celltype[clusters$seurat_clusters == 16] <- "Inhibitory"
+clusters$celltype[clusters$seurat_clusters == 17] <- "Unknown"
+clusters$celltype[clusters$seurat_clusters == 18] <- "Unknown"
+clusters$celltype[clusters$seurat_clusters == 19] <- "Excitatory"
+clusters$celltype[clusters$seurat_clusters == 20] <- "Inhibitory"
+
+# Check number of cells in each cluster assignment
+table(clusters$celltype)
+
+#Astrocyte      Endothelial       Excitatory       Inhibitory        Microglia Oligodendrocytes 
+#3753              390             3190             3184             1461            17487 
+#OPC          Unknown 
+#1004             2467 
+
+# Check number of cells by sample 
+table(clusters$orig.ident)
+
+#TnegM025 TnegM026 TnegM027 TnegM028 TposM025 tposM026 TposM027 TposM028 
+#4701     3496     3831     5359     5072     4742     2244     3491 
+
+# Save new object with cell types
+saveRDS(clusters, file = "mergedn279k_celltypes.rds")
+
+# Load object with cell types
+clusters <- readRDS("mergedn279k_celltypes.rds")
+```
+
+```{r, alluvial plot, fig.height=8, fig.width=10}
+
+# Alluvial plot to see which clusters have been annotated with which cell types
+# These plots show how data flows or changes through 
+# multiple dimensions
+
+# Order clusters numerically
+order_cluster <- unique(clusters$seurat_clusters) %>% as.numeric() %>% sort() %>% as.character()
+clusters$seurat_clusters <- factor(clusters$seurat_clusters, levels=order_cluster)
+
+ggplot(clusters@meta.data,
+       aes(axis1 = seurat_clusters,
+           axis2 = celltype,
+           fill = celltype)) +
+  geom_alluvium() +
+  geom_stratum() +
+  geom_text_repel(stat = "stratum",
+            aes(label=after_stat(stratum))) +
+  theme_void() +
+  NoLegend() +
+  coord_flip()
+```
+``` {r, umap celltype, fig.height=8, fig.width=10}
+
+# UMAP celltype
+Idents(clusters) <- "celltype"
+p <- DimPlot(clusters) + NoLegend()
+LabelClusters(p, id = "ident", fontfact = "bold", size = 4,
+              bg.colour = "white", bg.r = .2, force =0)
+
+# Run in the consol 
+```
+```{r, proportions, echo=FALSE, fig.height=8, fig.width=5}
+ggplot(clusters@meta.data) +
+  geom_bar(aes(x=orig.ident, fill=celltype, width = .01),
+           position=position_fill(), color="black") +
+  theme_classic() +
+  scale_fill_brewer(palette = "Set1")
+  labs(x="celltype", y = "Proportion of cells")
+```
+# Look at Phase D Genes: 
+
+phaseD <- read.csv("phaseD.csv")
+
+phaseDgenes <- subset(clusters, features = phaseD$genes)
+
+phaseDgenes$type <- NA # to create an empty column
+
+phaseDgenes$type[phaseDgenes$orig.ident == "TposM025"] <- "pos"
+phaseDgenes$type[phaseDgenes$orig.ident == "tposM026"] <- "pos"
+phaseDgenes$type[phaseDgenes$orig.ident == "TposM027"] <- "pos"
+phaseDgenes$type[phaseDgenes$orig.ident == "TposM028"] <- "pos"
+phaseDgenes$type[phaseDgenes$orig.ident == "TnegM025"] <- "neg"
+phaseDgenes$type[phaseDgenes$orig.ident == "TnegM026"] <- "neg"
+phaseDgenes$type[phaseDgenes$orig.ident == "TnegM027"] <- "neg"
+phaseDgenes$type[phaseDgenes$orig.ident == "TnegM028"] <- "neg"
+
+Idents(phaseDgenes) <- "type"
+
+# Set default assay to ensure we are inputing normalized data
+# NOT integrated data (if applicable)
+DefaultAssay(phaseDgenes) <- "RNA"
+
+# Fixing it? 
+phaseDgenes <- JoinLayers(phaseDgenes)
+
+# Running FindMarkers
+dge_phaseD <- FindMarkers(phaseDgenes, 
+                          ident.1 = "pos", 
+                          ident.2 = "neg")
+
+saveRDS(dge_phaseD, file = "findmarkers_n279kphaseD.rds")
+
+write.csv(dge_phaseD, "findmarkers_n279kphaseD_tpos_vs_tneg.csv")
+
+# Read for future use
+dge_phaseD_sig <- readRDS("findmarkers_n279kphaseD.rds")
+
+# Subset significant genes
+dge_phaseD_sig <- dge_phaseS %>% subset(p_val_adj < 0.05)
+dge_phaseD_sig %>% head()
+
+# Volcano plot
+p <- EnhancedVolcano(dge_oligos_sig, 
+                     row.names(dge_oligos_sig),
+                     x = "avg_log2FC",
+                     y = "p_val_adj",
+                     title = "FindMarkers DEG Oligodendrocytes",
+                     subtitle = "tpos vs. tneg")
+
+print(p)
+
+
+```
 
 
 
