@@ -31,6 +31,7 @@ wt2 <- CreateSeuratObject(counts = wt2, project = "wt2", min.cells = 3, min.feat
 
 Doing QC
 ```{r}
+
 # Remove unwanted cells
 mt1[["percent.mt"]] <- PercentageFeatureSet(mt1, pattern = "^MT-")
 mt1 <- subset(mt1, subset = nFeature_RNA > 200 & nFeature_RNA < 6000 & percent.mt < 10)
@@ -50,6 +51,12 @@ mt1 <- RunPCA(mt1, features = VariableFeatures(object = mt1))
 
 # Assess ElbowPlot for dimensions to maintain 
 ElbowPlot(mt1)
+
+# Cluster with UMAP 
+mt1 <- FindNeighbors(mt1, dims = 1:5)
+mt1 <- FindClusters(mt1, resolution = 0.5)
+mt1 <- RunUMAP(mt1, dims = 1:5)
+DimPlot(mt1, reduction = 'umap')
 
 ```
 
