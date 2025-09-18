@@ -1,0 +1,63 @@
+---
+title: "Analysis Dataset HMS"
+output: html_document
+date: "2025-09-18"
+---
+
+```{r}
+library(dplyr)
+library(Seurat)
+library(patchwork)
+```
+
+Merged together the wildtype and mutant datasets for future analysis 
+```{r}
+mt1 <- Read10X("/Users/hannahwilcox/Documents/sample_scRNA_sequencing_data/mt1")
+mt1 <- CreateSeuratObject(counts = mt1, project = "mt1", min.cells = 3, min.features = 200)
+
+mt2 <- Read10X("/Users/hannahwilcox/Documents/sample_scRNA_sequencing_data/mt2")
+mt2 <- CreateSeuratObject(counts = mt2, project = "mt2", min.cells = 3, min.features = 200)
+
+mt3 <- Read10X("/Users/hannahwilcox/Documents/sample_scRNA_sequencing_data/mt3")
+mt3 <- CreateSeuratObject(counts = mt3, project = "mt3", min.cells = 3, min.features = 200)
+
+wt1 <- Read10X("/Users/hannahwilcox/Documents/sample_scRNA_sequencing_data/wt1")
+wt1 <- CreateSeuratObject(counts = wt1, project = "wt1", min.cells = 3, min.features = 200)
+
+wt2 <- Read10X("/Users/hannahwilcox/Documents/sample_scRNA_sequencing_data/wt2")
+wt2 <- CreateSeuratObject(counts = wt2, project = "wt2", min.cells = 3, min.features = 200)
+
+```
+
+Doing QC
+```{r}
+# Remove unwanted cells
+mt1[["percent.mt"]] <- PercentageFeatureSet(mt1, pattern = "^MT-")
+mt1 <- subset(mt1, subset = nFeature_RNA > 200 & nFeature_RNA < 6000 & percent.mt < 10)
+
+# Normalize the dataset using standard normalization method 
+mt1 <- NormalizeData(mt1, normalization.method = "LogNormalize", scale.factor = 1e4)
+
+# Limit to only most variable features to shrink dataset 
+mt1 <- FindVariableFeatures(mt1, selection.method = 'vst', nfeatures = 2000)
+
+# Scale to mean 0 and variance 1 so highly expressed genes don't dominate 
+all.genes <- rownames(mt1)
+mt1 <- ScaleData(mt1, features = all.genes)
+
+# Perform PCA 
+mt1 <- RunPCA(mt1, features = VariableFeatures(object = mt1))
+
+# Assess ElbowPlot for dimensions to maintain 
+ElbowPlot(mt1)
+
+```
+
+
+
+
+
+
+
+
+
