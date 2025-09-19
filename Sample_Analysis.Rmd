@@ -50,6 +50,9 @@ library(speckle)
 library(ggplot2)
 library(patchwork)
 library(presto)
+library(Matrix)
+library(DESeq2)
+library(EnhancedVolcano)
 ```
 
 Merged together the wildtype and mutant datasets for future analysis 
@@ -207,12 +210,13 @@ VlnPlot(all, features = c("Hml", "P1", "P2"))
 0: Muscle
 1: Muscle
 2: Muscle 
-3: Neuron
+3: Muscle
 4: Neuron 
 5: Neuron 
 6: Neuron 
 7: Neuron 
 8: Neuron 
+9: Neuron
 
 
 
@@ -236,24 +240,26 @@ all$celltype <- NA # to create an empty column
 all$celltype[all$seurat_clusters == 0] <- "Muscle"
 all$celltype[all$seurat_clusters == 1] <- "Muscle"
 all$celltype[all$seurat_clusters == 2] <- "Muscle"
-all$celltype[all$seurat_clusters == 3] <- "Neuron"
+all$celltype[all$seurat_clusters == 3] <- "Muscle"
 all$celltype[all$seurat_clusters == 4] <- "Neuron"
 all$celltype[all$seurat_clusters == 5] <- "Neuron"
 all$celltype[all$seurat_clusters == 6] <- "Neuron"
 all$celltype[all$seurat_clusters == 7] <- "Neuron"
 all$celltype[all$seurat_clusters == 8] <- "Neuron"
+all$celltype[all$seurat_clusters == 9] <- "Neuron"
+
 
 # Check number of cells in each cluster assignment
 table(all$celltype)
 
 # Muscle Neuron 
-# 13945   7471 
+# 13907   7475 
 
 # Check number of cells by sample 
 table(all$orig.ident)
 
-# mt1  mt2  mt3  wt1  wt2 
-# 4159 4201 4221 4272 4563 
+#  mt1  mt2  mt3  wt1  wt2 
+# 4155 4198 4218 4258 4553 
 ```
 
 ```{r, alluvial plot, fig.height=8, fig.width=10}
@@ -265,6 +271,7 @@ LabelClusters(p, id = "ident")
 # Run in the consol 
 ```
 
+# Add Cell Type Labels
 ```{r}
 all$type <- NA # to create an empty column
 
@@ -274,75 +281,52 @@ all$type[all$orig.ident == "mt3"] <- "mt"
 all$type[all$orig.ident == "wt1"] <- "wt"
 all$type[all$orig.ident == "wt2"] <- "wt"
 
-Idents(all) <- "type"
-
-all_dge <- all
-
-# Set default assay to ensure we are inputing normalized data
-# NOT integrated data (if applicable)
-DefaultAssay(all_dge) <- "RNA"
-
-# Fixing it? 
-all_dge <- JoinLayers(all_dge)
-
-# Running FindMarkers
-all_dge <- FindMarkers(all_dge, ident.1 = "mt", ident.2 = "wt")
-
-write.csv(all_dge, "findmarkers_all_mt_vs_wt.csv")
-
-# Subset significant genes
-all_sig <- all_dge %>% subset(p_val_adj < 0.05)
-all_sig %>% head()
-
-# Volcano plot
-p <- EnhancedVolcano(all_sig, 
-                     row.names(all_sig),
-                     x = "avg_log2FC",
-                     y = "p_val_adj",
-                     title = "FindMarkers DEG All Cells",
-                     subtitle = "Mutant vs. WildType")
-
-print(p)
-
-
 ```
 
+
+
+# Differential Expression 
 ```{r}
-neurons_subset <- subset(all, subset = (celltype == "Neuron"))
+# Create a vector mapping cell -> sample and cell -> celltype
+meta <- all@meta.data
+# Example for Neurons only
+neurons_cells <- rownames(meta)[meta$celltype == "Neuron"]
+neurons <- subset(all, cells = neurons_cells)
 
-# Set default assay to ensure we are inputing normalized data
-# NOT integrated data (if applicable)
-DefaultAssay(neurons_subset) <- "RNA"
+# Aggregate to pseudobulk: sum counts per gene per sample
+neurons <- JoinLayers(neurons)
+counts <- GetAssayData(neurons, slot = "counts", assay = "RNA")
+samples <- neurons$orig.ident
+# aggregate using Matrix::rowSums on subsets:
+sample_list <- split(colnames(counts), samples)
+pb_counts <- sapply(sample_list, function(cols) rowSums(counts[, cols, drop=FALSE]))
+# pb_counts is genes x sample matrix
 
-# Fixing it? 
-neurons_subset <- JoinLayers(neurons_subset)
+coldata <- data.frame(row.names = colnames(pb_counts),
+                      condition = ifelse(grepl("^mt", colnames(pb_counts)),"mt","wt"))
+dds <- DESeqDataSetFromMatrix(countData = pb_counts,
+                              colData = coldata,
+                              design = ~ condition)
+dds <- DESeq(dds)
+res <- results(dds)
 
-# Running FindMarkers
-neurons_subset <- FindMarkers(neurons_subset, ident.1 = "mt", ident.2 = "wt")
+res_df <- as.data.frame(res) %>% 
+  rownames_to_column("gene") %>%
+  arrange(padj)
 
-write.csv(neurons_subset, "findmarkers_neurons_mt_vs_wt.csv")
+sig_genes <- res_df %>% filter(padj < 0.05 & abs(log2FoldChange) > 1)
+head(sig_genes)
 
-# Subset significant genes
-neurons_sig <- neurons_subset %>% subset(p_val_adj < 0.05)
-neurons_sig %>% head()
-
-# Volcano plot
-p <- EnhancedVolcano(neurons_sig, 
-                     row.names(neurons_sig),
-                     x = "avg_log2FC",
-                     y = "p_val_adj",
-                     title = "FindMarkers DEG All Cells",
-                     subtitle = "Mutant vs. WildType")
-
-print(p)
+EnhancedVolcano(res_df,
+    lab = res_df$gene,
+    x = "log2FoldChange",
+    y = "padj",
+    title = "Pseudobulk DEG: Mutant vs Wildtype Neurons",
+    pCutoff = 0.05,
+    FCcutoff = 1,
+    pointSize = 2.0,
+    labSize = 3.5)
 ```
-
-
-
-
-
-
-
 
 
 
