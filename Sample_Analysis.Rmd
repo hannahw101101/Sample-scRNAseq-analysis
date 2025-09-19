@@ -285,7 +285,7 @@ all$type[all$orig.ident == "wt2"] <- "wt"
 
 
 
-# Differential Expression 
+# Differential Expression: Neurons
 ```{r}
 # Create a vector mapping cell -> sample and cell -> celltype
 meta <- all@meta.data
@@ -327,6 +327,61 @@ EnhancedVolcano(res_df,
     pointSize = 2.0,
     labSize = 3.5)
 ```
+
+
+# Differential Expression: Muscle
+```{r}
+# Create a vector mapping cell -> sample and cell -> celltype
+meta <- all@meta.data
+# Example for Neurons only
+muscle_cells <- rownames(meta)[meta$celltype == "Muscle"]
+muscles <- subset(all, cells = muscle_cells)
+
+# Aggregate to pseudobulk: sum counts per gene per sample
+muscles <- JoinLayers(muscles)
+counts <- GetAssayData(muscles, slot = "counts", assay = "RNA")
+samples <- muscles$orig.ident
+# aggregate using Matrix::rowSums on subsets:
+sample_list <- split(colnames(counts), samples)
+pb_counts <- sapply(sample_list, function(cols) rowSums(counts[, cols, drop=FALSE]))
+# pb_counts is genes x sample matrix
+
+coldata <- data.frame(row.names = colnames(pb_counts),
+                      condition = ifelse(grepl("^mt", colnames(pb_counts)),"mt","wt"))
+dds <- DESeqDataSetFromMatrix(countData = pb_counts,
+                              colData = coldata,
+                              design = ~ condition)
+dds <- DESeq(dds)
+res <- results(dds)
+
+res_df <- as.data.frame(res) %>% 
+  rownames_to_column("gene") %>%
+  arrange(padj)
+
+sig_genes <- res_df %>% filter(padj < 0.05 & abs(log2FoldChange) > 1)
+head(sig_genes)
+
+EnhancedVolcano(res_df,
+    lab = res_df$gene,
+    x = "log2FoldChange",
+    y = "padj",
+    title = "Pseudobulk DEG: Mutant vs Wildtype Muscles",
+    pCutoff = 0.05,
+    FCcutoff = 1,
+    pointSize = 2.0,
+    labSize = 3.5)
+```
+
+
+
+
+
+
+
+
+
+
+
 
 
 
