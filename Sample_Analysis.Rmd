@@ -26,6 +26,9 @@ install.packages("msigdbr")
 install.packages("ggvenn")
 install.packages("tidyverse")
 
+install.packages('devtools')
+devtools::install_github('immunogenomics/presto')
+
 # Load libraries
 library(Seurat)
 library(tidyverse)
@@ -46,6 +49,7 @@ library(sccomp)
 library(speckle)
 library(ggplot2)
 library(patchwork)
+library(presto)
 ```
 
 Merged together the wildtype and mutant datasets for future analysis 
@@ -72,7 +76,7 @@ Doing QC
 ```{r}
 QC = function(sample) {
   # Remove unwanted cells
-  sample[["percent.mt"]] <- PercentageFeatureSet(sample, pattern = "^MT-")
+  sample[["percent.mt"]] <- PercentageFeatureSet(sample, pattern = "^mt:")
   sample <- subset(sample, subset = nFeature_RNA > 200 & nFeature_RNA < 6000 & percent.mt < 10)
 
   # Normalize the dataset using standard normalization method 
@@ -162,7 +166,7 @@ all <- FindVariableFeatures(all, selection.method = 'vst', nfeatures = 2000)
 
 all.genes <- rownames(all)
 all <- ScaleData(all, features = all.genes)
-all <- RunPCA(all, features = VariableFeatures(object = mt.all))
+all <- RunPCA(all, features = VariableFeatures(object = all))
 ElbowPlot(all)
 
 all <- FindNeighbors(all, dims = 1:5) # Edit dims based on ElbowPlot
@@ -177,26 +181,26 @@ DimPlot(all, reduction = 'umap', label = FALSE, label.box = TRUE, split.by = "or
 Samples are properly merged with all samples having cells in each cluster, so no need to integrate. Can now run DEA 
 
 ```{r}
-# Cell Type Analysis on Mutant cells 
+# Cell Type Analysis on Cells 
 # Common genes expressed in cell types in drosophila 
 
 # Neurons
-VlnPlot(wt.all, features = c("elav", "Fas2", "trio"))
+VlnPlot(all, features = c("elav", "Fas2", "trio"))
 
 # Glia
-VlnPlot(wt.all, features = c("repo", "glial"))
+VlnPlot(all, features = c("repo", "glial"))
 
 # Muscle
-VlnPlot(wt.all, features = c("Mhc"))
+VlnPlot(all, features = c("Mhc"))
 
 # Fat body
-VlnPlot(wt.all, features = c("Lsp2"))
+VlnPlot(all, features = c("Lsp2"))
 
 # Ovary
-VlnPlot(wt.all, features = c("Orb", "esg"))
+VlnPlot(all, features = c("Orb", "esg"))
 
 # Blood Cells
-VlnPlot(wt.all, features = c("Hml", "P1", "P2"))
+VlnPlot(all, features = c("Hml", "P1", "P2"))
 
 
 ```
@@ -212,58 +216,12 @@ VlnPlot(wt.all, features = c("Hml", "P1", "P2"))
 
 
 
-
-
-
-```{r}
-# Cell Type Analysis on Wild Type cells 
-
-# Neurons
-VlnPlot(wt.all, features = c("elav", "Fas2", "trio"))
-
-# Glia
-VlnPlot(wt.all, features = c("repo", "glial"))
-
-# Muscle
-VlnPlot(wt.all, features = c("Mhc"))
-
-# Fat body
-VlnPlot(wt.all, features = c("Lsp2"))
-
-# Ovary
-VlnPlot(wt.all, features = c("Orb", "esg"))
-
-# Blood Cells
-VlnPlot(wt.all, features = c("Hml", "P1", "P2"))
-
-
-```
-
-0: Muscle
-1: Muscle
-2: Muscle
-3: Neuron 
-4: Neuron
-5: Neuron 
-6: Neuron 
-7: Neuron 
-8: Neuron 
-
-
 ```{r, Data viz}
-# Number of cells per sample
-ggplot(mt.all@meta.data) +
-  geom_bar(aes(x=orig.ident, fill = nCount_RNA),
-           stat = "count", color = "black") +
-  theme_classic() +
-  theme(axis.text.x = element_text(angle=45, vjust=1, hjust=1)) +
-  labs(x="Sample name", y = "Number of cells")
-
 # UMAP of sample
-DimPlot(mt.all, group.by = "orig.ident")
+DimPlot(all, group.by = "orig.ident")
 
 # UMAP clusters
-p <- DimPlot(mt.all, group.by = "seurat_clusters") + NoLegend()
+p <- DimPlot(all, group.by = "seurat_clusters") + NoLegend()
 LabelClusters(p, id = "seurat_clusters", fonface = "bold", size = 5,
               bg.colour = "white", bg.r = .2, force = 0)
 
@@ -273,96 +231,111 @@ LabelClusters(p, id = "seurat_clusters", fonface = "bold", size = 5,
 ```{r, clusters to celltype}
 # Map clusters to celltype
 # Need to add cell type column to Seurat object 
-mt.all$celltype <- NA # to create an empty column
+all$celltype <- NA # to create an empty column
 
-mt.all$celltype[mt.all$seurat_clusters == 0] <- "Muscle"
-mt.all$celltype[mt.all$seurat_clusters == 1] <- "Muscle"
-mt.all$celltype[mt.all$seurat_clusters == 2] <- "Muscle"
-mt.all$celltype[mt.all$seurat_clusters == 3] <- "Neuron"
-mt.all$celltype[mt.all$seurat_clusters == 4] <- "Neuron"
-mt.all$celltype[mt.all$seurat_clusters == 5] <- "Neuron"
-mt.all$celltype[mt.all$seurat_clusters == 6] <- "Neuron"
-mt.all$celltype[mt.all$seurat_clusters == 7] <- "Neuron"
-mt.all$celltype[mt.all$seurat_clusters == 8] <- "Neuron"
+all$celltype[all$seurat_clusters == 0] <- "Muscle"
+all$celltype[all$seurat_clusters == 1] <- "Muscle"
+all$celltype[all$seurat_clusters == 2] <- "Muscle"
+all$celltype[all$seurat_clusters == 3] <- "Neuron"
+all$celltype[all$seurat_clusters == 4] <- "Neuron"
+all$celltype[all$seurat_clusters == 5] <- "Neuron"
+all$celltype[all$seurat_clusters == 6] <- "Neuron"
+all$celltype[all$seurat_clusters == 7] <- "Neuron"
+all$celltype[all$seurat_clusters == 8] <- "Neuron"
 
 # Check number of cells in each cluster assignment
-table(mt.all$celltype)
+table(all$celltype)
 
-#Muscle Neuron 
-# 7880   4701 
+# Muscle Neuron 
+# 13945   7471 
 
 # Check number of cells by sample 
-table(mt.all$orig.ident)
+table(all$orig.ident)
 
-# mt1  mt2  mt3 
-# 4159 4201 4221 
+# mt1  mt2  mt3  wt1  wt2 
+# 4159 4201 4221 4272 4563 
 ```
 
 ```{r, alluvial plot, fig.height=8, fig.width=10}
 # UMAP celltype
-Idents(mt.all) <- "celltype"
-p <- DimPlot(mt.all) + NoLegend()
-LabelClusters(p, id = "ident", fontfact = "bold", size = 4,
-              bg.colour = "white", bg.r = .2, force =0)
+Idents(all) <- "celltype"
+p <- DimPlot(all) + NoLegend()
+LabelClusters(p, id = "ident")
 
 # Run in the consol 
 ```
 
-# Look at Phase D Genes: 
+```{r}
+all$type <- NA # to create an empty column
 
-phaseD <- read.csv("phaseD.csv")
+all$type[all$orig.ident == "mt1"] <- "mt"
+all$type[all$orig.ident == "mt2"] <- "mt"
+all$type[all$orig.ident == "mt3"] <- "mt"
+all$type[all$orig.ident == "wt1"] <- "wt"
+all$type[all$orig.ident == "wt2"] <- "wt"
 
-phaseDgenes <- subset(clusters, features = phaseD$genes)
+Idents(all) <- "type"
 
-phaseDgenes$type <- NA # to create an empty column
-
-phaseDgenes$type[phaseDgenes$orig.ident == "TposM025"] <- "pos"
-phaseDgenes$type[phaseDgenes$orig.ident == "tposM026"] <- "pos"
-phaseDgenes$type[phaseDgenes$orig.ident == "TposM027"] <- "pos"
-phaseDgenes$type[phaseDgenes$orig.ident == "TposM028"] <- "pos"
-phaseDgenes$type[phaseDgenes$orig.ident == "TnegM025"] <- "neg"
-phaseDgenes$type[phaseDgenes$orig.ident == "TnegM026"] <- "neg"
-phaseDgenes$type[phaseDgenes$orig.ident == "TnegM027"] <- "neg"
-phaseDgenes$type[phaseDgenes$orig.ident == "TnegM028"] <- "neg"
-
-Idents(phaseDgenes) <- "type"
+all_dge <- all
 
 # Set default assay to ensure we are inputing normalized data
 # NOT integrated data (if applicable)
-DefaultAssay(phaseDgenes) <- "RNA"
+DefaultAssay(all_dge) <- "RNA"
 
 # Fixing it? 
-phaseDgenes <- JoinLayers(phaseDgenes)
+all_dge <- JoinLayers(all_dge)
 
 # Running FindMarkers
-dge_phaseD <- FindMarkers(phaseDgenes, 
-                          ident.1 = "pos", 
-                          ident.2 = "neg")
+all_dge <- FindMarkers(all_dge, ident.1 = "mt", ident.2 = "wt")
 
-saveRDS(dge_phaseD, file = "findmarkers_n279kphaseD.rds")
-
-write.csv(dge_phaseD, "findmarkers_n279kphaseD_tpos_vs_tneg.csv")
-
-# Read for future use
-dge_phaseD_sig <- readRDS("findmarkers_n279kphaseD.rds")
+write.csv(all_dge, "findmarkers_all_mt_vs_wt.csv")
 
 # Subset significant genes
-dge_phaseD_sig <- dge_phaseS %>% subset(p_val_adj < 0.05)
-dge_phaseD_sig %>% head()
+all_sig <- all_dge %>% subset(p_val_adj < 0.05)
+all_sig %>% head()
 
 # Volcano plot
-p <- EnhancedVolcano(dge_oligos_sig, 
-                     row.names(dge_oligos_sig),
+p <- EnhancedVolcano(all_sig, 
+                     row.names(all_sig),
                      x = "avg_log2FC",
                      y = "p_val_adj",
-                     title = "FindMarkers DEG Oligodendrocytes",
-                     subtitle = "tpos vs. tneg")
+                     title = "FindMarkers DEG All Cells",
+                     subtitle = "Mutant vs. WildType")
 
 print(p)
 
 
 ```
 
+```{r}
+neurons_subset <- subset(all, subset = (celltype == "Neuron"))
+
+# Set default assay to ensure we are inputing normalized data
+# NOT integrated data (if applicable)
+DefaultAssay(neurons_subset) <- "RNA"
+
+# Fixing it? 
+neurons_subset <- JoinLayers(neurons_subset)
+
+# Running FindMarkers
+neurons_subset <- FindMarkers(neurons_subset, ident.1 = "mt", ident.2 = "wt")
+
+write.csv(neurons_subset, "findmarkers_neurons_mt_vs_wt.csv")
+
+# Subset significant genes
+neurons_sig <- neurons_subset %>% subset(p_val_adj < 0.05)
+neurons_sig %>% head()
+
+# Volcano plot
+p <- EnhancedVolcano(neurons_sig, 
+                     row.names(neurons_sig),
+                     x = "avg_log2FC",
+                     y = "p_val_adj",
+                     title = "FindMarkers DEG All Cells",
+                     subtitle = "Mutant vs. WildType")
+
+print(p)
+```
 
 
 
